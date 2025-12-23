@@ -23,4 +23,33 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew assembleRelease
+
+    - name: List build outputs for debugging
+      run: |
+        echo "=== 查找所有APK文件 ==="
+        find . -name "*.apk" -type f | grep -v ".gradle" || true
+        echo ""
+        echo "=== 查找所有AAR文件 ==="
+        find . -name "*.aar" -type f | grep -v ".gradle" || true
+        echo ""
+        echo "=== 查看app模块输出目录 ==="
+        ls -la app/build/outputs/ || true
+        echo "=== 查看library模块输出目录 ==="
+        ls -la library/build/outputs/ || true
+    
+    - name: Upload APK Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: apk-files
+        path: |
+          app/build/outputs/apk/**/*.apk
+        retention-days: 30
+    
+    - name: Upload AAR Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aar-files
+        path: |
+          library/build/outputs/aar/**/*.aar
+        retention-days: 30
