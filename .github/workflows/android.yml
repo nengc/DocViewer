@@ -37,13 +37,44 @@ jobs:
         ls -la app/build/outputs/ || true
         echo "=== 查看library模块输出目录 ==="
         ls -la library/build/outputs/ || true
+
+    - name: Sign
+      run: |
+        mkdir -p /opt/out
+        mv .app/build/outputs/apk/release/app-release-unsigned.apk /opt/out/app-release-unsigned.apk
+        cd /opt/out
+        # 生成签名文件keystore.jks
+        keytool -genkeypair -v \
+          -keystore keystore.jks \
+          -alias key \
+          -keyalg RSA \
+          -keysize 2048 \
+          -validity 10000 \
+          -storepass ${{ secrets.SIGNING_PASSWORD || 'android' }} \
+          -keypass ${{ secrets.SIGNING_PASSWORD || 'android' }} \
+          -dname "CN=Android, OU=Android, O=Android, L=BeiJing, ST=BeiJing, C=CN"
+        # keytool -genkey -v -keystore keystore.jks -storepass $password -alias key -keypass $password -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android, OU=Android, O=Android, L=BeiJing, ST=BeiJing, C=CN"
+        # 找到最新的apksigner
+        APKSIGNER_PATH=$(find /usr/local/lib/android/sdk/build-tools -name "apksigner" | sort -V | tail -1)
+        echo "Using apksigner: $APKSIGNER_PATH"
+        $APKSIGNER_PATH sign \
+          --ks keystore.jks \
+          --ks-key-alias key \
+          --ks-pass pass:${{ secrets.SIGNING_PASSWORD || 'android' }} \
+          --key-pass pass:${{ secrets.SIGNING_PASSWORD || 'android' }} \
+          --out app-release-signed.apk \
+          --in app-release-unsigned.apk \
+          --v1-signing-enabled true \
+          --v2-signing-enabled true \
+          --v3-signing-enabled true
+        rm app-release-unsigned.apk
     
     - name: Upload APK Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: apk-files
         path: |
-          app/build/outputs/apk/**/*.apk
+          /opt/out/*.apk
         retention-days: 30
     
     - name: Upload AAR Artifacts
